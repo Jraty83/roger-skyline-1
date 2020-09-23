@@ -1,29 +1,98 @@
 INSTALLATION:
 
 # Do the partitioning
+
 	• A disk size of 8 GB.
 	• Have at least one 4.2 GB partition.
 
 # Make sure it's up to date as well as the whole packages installed
+
 	• sudo apt-get update -y && sudo apt-get upgrade -y
 
 # # # # # # # # # # # # # # # #
 
 NETWORK AND SECURITY:
 
+!! Make sure you have at least one (non-root) user with matching pubkey
+
 # You must create a non-root user to connect to the machine and work.
+
 	• sudo adduser <username>
 	• ssh <username>@<host.ip>
 
 # Use sudo, with this user, to be able to perform operation requiring special rights.
+
 	• sudo adduser <username> sudo
 
 # We don’t want you to use the DHCP service of your machine.
   You’ve got to configure it to have a static IP and a Netmask in \30.
-	• 
-	
-	...if hostname -I does not show anything, use "ifup enp03s"
 
-	...sudo /etc/init.d/networking "restart", "start" or "stop"
+	• ip a / ip route (check ip address, netmask and gateway. != dynamic is static)
+	• sudo vi /etc/network/interfaces
+		• change dhcp > static
+		• address 10.11.XXX.XXX (ping to see it's free, first 2 fields must match)
+		• netmask 255.255.255.252 (netmask /30)
+		• gateway 10.11.254.254 (from 'ip route | grep default)
+	• ifdown enp0s3 && ifup enp0s3 (to restart network)
+	(apt-get install net-tools)
+	• sudo netstat -tulpn OR sudo ss -tulpn to check if the dhclient is still listening
 
-	...sudo reboot (reboot VM)
+# You have to change the default port of the SSH service by the one of your choice.
+  SSH access HAS TO be done with publickeys. SSH root access SHOULD NOT be allowed
+  directly, but with a user who can be root.
+
+	(sudo ss -tulpn OR sudo netstat -tulpn (to check which port sshd is currently))
+	• sudo vi /etc/ssh/sshd_config
+		• change "Port 22" (uncomment AND choose a port between 49152–65535)
+	(sudo apt-get install ufw)
+	• sudo ufw allow 50001/tcp (update the firewall rules)
+	• sudo service sshd restart
+	• connect again via new port: ssh <username>@<host.ip> -p <port_nbr>
+	(sudo ss -tulpn OR sudo netstat -tulpn (to check which port sshd is currently))
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	• sudo vi /etc/ssh/sshd_config
+		-> uncomment "PermitRootLogin" and set its value to "no"
+		-> uncomment "PubkeyAuthentication" and set its value to "yes"
+		-> uncomment "PasswordAuthentication" and set its value to "no"
+	• sudo service sshd restart
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	• ssh orava@10.11.66.6 -p 50001 (doesn't work...)
+		-> orava@10.11.66.6: Permission denied (publickey).
+	• go back to "sudo vi /etc/ssh/sshd_config" (on guest machine)
+	• set "PasswordAuthentication" back to "yes"
+	• sudo service sshd restart
+	• ssh-copy-id orava@10.11.66.6 -p 50001 (type orava's password)
+		-> Number of key(s) added:        1
+	• go back to "sudo vi /etc/ssh/sshd_config" (on guest machine)
+	• set "PasswordAuthentication" back to "no"
+	• sudo service sshd restart
+	• ssh orava@10.11.66.6 -p 50001 (works!!!)
+
+# You have to set the rules of your firewall on your server only with the services
+  used outside the VM.
+
+  • ......
+
+
+USEFUL COMMANDS:
+
+# su !! (run previous command as sudo)
+
+# sudo killall -KILL -u <username> (or pkill)
+# sudo deluser --remove-home <username>
+
+# cat /etc/passwd (to see users)
+
+# sudo reboot (restart system)
+
+
+TROUBLESHOOTING:
+
+# -bash: sudo: command not found
+	• apt-get install sudo (su -)
+
+# bash: netstat: command not found
+	• apt-get install net-tools (su -)
+
+# sudo: killall: command not found
+	• apt-get install psmisc (su -)
