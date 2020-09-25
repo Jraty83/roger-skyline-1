@@ -1,28 +1,34 @@
 INSTALLATION:
 
+
 # Do the partitioning
 
 	• A disk size of 8 GB.
 	• Have at least one 4.2 GB partition.
 
+
 # Make sure it's up to date as well as the whole packages installed
 
 	• sudo apt-get update -y && sudo apt-get upgrade -y
 
-# # # # # # # # # # # # # # # #
+############################################################################################
 
 NETWORK AND SECURITY:
 
 !! Make sure you have at least one (non-root) user with matching pubkey
 
+
 # You must create a non-root user to connect to the machine and work.
 
-	• sudo adduser <username>
-	• ssh <username>@<host.ip>
+	• sudo adduser orava
+	• ssh orava@<host.ip>
+
 
 # Use sudo, with this user, to be able to perform operation requiring special rights.
 
-	• sudo adduser <username> sudo
+	• sudo adduser orava sudo (or sudo visudo > orava	ALL=(ALL:ALL) NOPASSWD:ALL)
+	(test it with i.e. "cat /var/log/syslog")
+
 
 # We don’t want you to use the DHCP service of your machine.
   You’ve got to configure it to have a static IP and a Netmask in \30.
@@ -36,6 +42,7 @@ NETWORK AND SECURITY:
 	• ifdown enp0s3 && ifup enp0s3 (to restart network)
 	(apt-get install net-tools)
 	• sudo netstat -tulpn OR sudo ss -tulpn to check if the dhclient is still listening
+
 
 # You have to change the default port of the SSH service by the one of your choice.
   SSH access HAS TO be done with publickeys. SSH root access SHOULD NOT be allowed
@@ -67,12 +74,139 @@ NETWORK AND SECURITY:
 	• set "PasswordAuthentication" back to "no"
 	• sudo service sshd restart
 	• ssh orava@10.11.66.6 -p 50001 (works!!!)
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	OR
+	(login as a non-root user with sudo rights)
+	• sudo adduser orava
+	• sudo adduser orava sudo
+	• sudo mkdir -p /home/orava/.ssh/
+	• sudo scp /home/janne/.ssh/authorized_keys /home/orava/.ssh/authorized_keys
+	• sudo chown orava /home/orava/.ssh/authorized_keys
+	• logout
+	• ssh orava@10.11.66.6 -p 50001
+
 
 # You have to set the rules of your firewall on your server only with the services
   used outside the VM.
 
-  • ......
+	• sudo ufw status verbose
+	• sudo ufw enable (if inactive)
+	• sudo ufw allow http (80/tcp)
+	• sudo ufw allow http (443/tcp)
+//	• sudo ufw deny 22/tcp (deny access via default ssh port)
+	• sudo service sshd restart
+	  (sudo iptables --list) - the default firewall management utility
+	  (sudo netstat -tapnl) - to see which port's are listening
+	  (sudo lsof -i :50001)
 
+
+# You have to set a DOS (Denial Of Service Attack) protection on your open ports of your VM.
+
+	• sudo netstat -tulpn | grep LISTEN (to see which ports are open/listened)
+		OR (sudo lsof -i -P -n | grep LISTEN)
+		OR (sudo nmap -sTU -O 10.11.66.6)
+	• sudo apt-get install fail2ban
+	• sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local (make a local copy of 'local.conf')
+	• sudo vi /etc/fail2ban/jail.local
+		-> [sshd]
+			enabled = true (add this line)
+			port = 50001 (specify your custom ssh port)
+			
+		-> [http-get-dos] (add this whole thing under '# HTTP servers' section)
+			enabled = true
+			port = http,https
+			filter = http-get-dos
+			logpath = /var/log/apache*/access.log
+			maxretry = 400
+			findtime = 400
+			bantime = 200
+			action = iptables[name=HTTP, port=http, protocol=tcp]
+	• sudo vi /etc/fail2ban/filter.d/http-get-dos.conf (create a new file)
+		-> # Fail2Ban configuration file
+			#
+			[Definition]
+
+			# Option: failregex
+			# Note: This regex will match any GET entry in your logs, so basically all valid and not valid entries are a match.
+			# You should set up in the jail.conf file, the maxretry and findtime carefully in order to avoid false positives.
+
+			failregex = ^<HOST> -.*\"(GET|POST).*
+
+			# Option: ignoreregex
+			# Notes.: regex to ignore. If this regex matches, the line is ignored.
+			# Values: TEXT
+			#
+			ignoreregex =
+	• sudo service fail2ban restart (restart to make changes effective)
+	• sudo service fail2ban status (check it running again)
+	• sudo fail2ban-client status (check both jails are active)
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	(in the MAC TERMINAL)
+
+	[HTTP attack]
+
+	• install SlowLoris: git clone https://github.com/gkbrk/slowloris.git slowloris
+	• cd ~/slowloris
+	• python slowloris.py 10.11.66.6
+		-> sudo fail2ban-client status http-get-dos (check http-get-dos jail)
+				Status for the jail: http-get-dos
+				|- Filter
+				|  |- Currently failed: 0
+				|  |- Total failed:     450
+				|  `- File list:        /var/log/apache2/access.log
+				`- Actions
+					|- Currently banned: 1
+					|- Total banned:     2
+					`- Banned IP list:   10.11.6.13
+		-> sudo iptables -S (you can see banned IP here)
+				-A f2b-HTTP -s 10.11.6.13/32 -j REJECT --reject-with icmp-port-unreachable
+		-> sudo cat /var/log/fail2ban.log | grep 'Ban\|Unban' (check banned connetions)
+				2020-09-25 09:03:41,135 fail2ban.actions        [9311]: NOTICE  [http-get-dos] Ban 10.11.6.13
+
+	[SSH attack]
+
+	• try to connect 6 times via ssh
+		-> c1r6p13% ssh paviaani@10.11.66.6 -p 50001
+		   paviaani@10.11.66.6: Permission denied (publickey).
+		   c1r6p13% ssh paviaani@10.11.66.6 -p 50001
+		   paviaani@10.11.66.6: Permission denied (publickey).
+		   c1r6p13% ssh paviaani@10.11.66.6 -p 50001
+		   paviaani@10.11.66.6: Permission denied (publickey).
+		   c1r6p13% ssh paviaani@10.11.66.6 -p 50001
+		   paviaani@10.11.66.6: Permission denied (publickey).
+		   c1r6p13% ssh paviaani@10.11.66.6 -p 50001
+		   paviaani@10.11.66.6: Permission denied (publickey).
+		   c1r6p13% ssh paviaani@10.11.66.6 -p 50001
+		   ssh: connect to host 10.11.66.6 port 50001: Connection refused
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	(in the DEBIAN TERMINAL, because you're now banned)
+
+	-> sudo fail2ban-client status sshd (check sshd jail)
+			Status for the jail: sshd
+					|- Filter
+					|  |- Currently failed: 0
+					|  |- Total failed:     5
+					|  `- File list:        /var/log/auth.log
+					`- Actions
+						|- Currently banned: 1
+						|- Total banned:     1
+						`- Banned IP list:   10.11.6.13
+	-> sudo iptables -S (you can see banned IP here)
+			-A f2b-sshd -s 10.11.6.13/32 -j REJECT --reject-with icmp-port-unreachable
+	-> sudo cat /var/log/fail2ban.log | grep 'Ban\|Unban' (check banned connetions)
+				2020-09-25 09:08:38,925 fail2ban.actions        [9311]: NOTICE  [sshd] Ban 10.11.6.13
+
+
+	HOW TO UNBAN ?? (manually)
+
+############################################################################################
+
+##	• (Optional) If you would like email support, install Sendmail:
+##		apt-get install sendmail-bin sendmail
+	• 
+	
+
+############################################################################################
 
 USEFUL COMMANDS:
 
@@ -85,6 +219,7 @@ USEFUL COMMANDS:
 
 # sudo reboot (restart system)
 
+############################################################################################
 
 TROUBLESHOOTING:
 
