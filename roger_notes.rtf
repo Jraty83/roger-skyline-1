@@ -1,11 +1,14 @@
+############################################################################################
+
 INSTALLATION:
 
+############################################################################################
 
 # Do the partitioning
 
 	• A disk size of 8 GB.
 	• Have at least one 4.2 GB partition.
-
+____________________________________________________________________________________________
 
 # Make sure it's up to date as well as the whole packages installed
 
@@ -15,6 +18,8 @@ INSTALLATION:
 
 NETWORK AND SECURITY:
 
+############################################################################################
+
 !! Make sure you have at least one (non-root) user with matching pubkey
 
 
@@ -22,13 +27,13 @@ NETWORK AND SECURITY:
 
 	• sudo adduser orava
 	• ssh orava@<host.ip>
-
+____________________________________________________________________________________________
 
 # Use sudo, with this user, to be able to perform operation requiring special rights.
 
 	• sudo adduser orava sudo (or sudo visudo > orava	ALL=(ALL:ALL) NOPASSWD:ALL)
 	(test it with i.e. "cat /var/log/syslog")
-
+____________________________________________________________________________________________
 
 # We don’t want you to use the DHCP service of your machine.
   You’ve got to configure it to have a static IP and a Netmask in \30.
@@ -42,7 +47,7 @@ NETWORK AND SECURITY:
 	• ifdown enp0s3 && ifup enp0s3 (to restart network)
 	(apt-get install net-tools)
 	• sudo netstat -tulpn OR sudo ss -tulpn to check if the dhclient is still listening
-
+____________________________________________________________________________________________
 
 # You have to change the default port of the SSH service by the one of your choice.
   SSH access HAS TO be done with publickeys. SSH root access SHOULD NOT be allowed
@@ -84,7 +89,7 @@ NETWORK AND SECURITY:
 	• sudo chown orava /home/orava/.ssh/authorized_keys
 	• logout
 	• ssh orava@10.11.66.6 -p 50001
-
+____________________________________________________________________________________________
 
 # You have to set the rules of your firewall on your server only with the services
   used outside the VM.
@@ -98,7 +103,7 @@ NETWORK AND SECURITY:
 	  (sudo iptables --list) - the default firewall management utility
 	  (sudo netstat -tapnl) - to see which port's are listening
 	  (sudo lsof -i :50001)
-
+____________________________________________________________________________________________
 
 # You have to set a DOS (Denial Of Service Attack) protection on your open ports of your VM.
 
@@ -196,15 +201,82 @@ NETWORK AND SECURITY:
 	-> sudo cat /var/log/fail2ban.log | grep 'Ban\|Unban' (check banned connetions)
 				2020-09-25 09:08:38,925 fail2ban.actions        [9311]: NOTICE  [sshd] Ban 10.11.6.13
 
+	(sudo fail2ban-client set JAIL_NAME unbanip IP_ADDR - to unban an ip if needed)
+____________________________________________________________________________________________
 
-	HOW TO UNBAN ?? (manually)
+# You have to set a protection against scans on your VM’s open ports.
+
+• sudo apt-get update && sudo apt-get install portsentry
+• sudo vi /etc/default/portsentry
+	-> TCP_MODE="atcp" ("a" in both, advanced mode)
+	-> UDP_MODE="audp"
+• sudo vi /etc/portsentry/portsentry.conf
+	-> BLOCK_UDP="1" (set these two "1" to activate UDP/TCP scans)
+	-> BLOCK_TCP="1"
+	-> KILL_ROUTE="/sbin/iptables -I INPUT -s $TARGET$ -j DROP"
+	   (search for KILL_ROUTE and make sure ONLY this line is uncommented)
+	   (sudo cat /etc/portsentry/portsentry.conf | grep KILL_ROUTE | grep -v "#" to verify)
+• sudo service portsentry restart
+• sudo service portsentry status
+
+(a) "sudo nmap -sTU -O 10.11.66.6" should not list anything anymore
+(b) Not able to do telnet to any port for eg. "telnet 10.11.66.6 PORT"
+(c) sudo cat /var/log/syslog
+	-> Sep 28 05:09:50 debian portsentry[6086]: attackalert: Host 10.11.66.6 has been blocked via
+	   dropped route using command: "/sbin/iptables -I INPUT -s 10.11.66.6 -j DROP"
+____________________________________________________________________________________________
+
+# Stop the services you don’t need for this project.
+
+• sudo systemctl disable <service>
+	-> sudo systemctl disable systemd-timesyncd
+
+REBOOT AND CHECK
+
+• systemctl list-unit-files --type service --state enabled
+	UNIT FILE              STATE  
+	apache2.service        enabled
+	apparmor.service       enabled
+	autovt@.service        enabled
+	...
+
+	13 unit files listed.
+
+• sudo service --status-all
+ 	[ - ]  apache-htcacheclean
+ 	[ + ]  apache2
+ 	[ + ]  apparmor
+ 	[ - ]  console-setup.sh
+ 	[ + ]  cron
+	...
+
+• systemctl --type=service (to list all loaded services on your system)
+____________________________________________________________________________________________
+
+# Create a script that updates all the sources of package, then your packages and which logs
+  the whole in a file named /var/log/update_script.log. Create a scheduled task for this script
+  once a week at 4AM and every time the machine reboots.
+
+• 
+
+
+
+
+
+
+
+
+
+
+
+
 
 ############################################################################################
 
-##	• (Optional) If you would like email support, install Sendmail:
-##		apt-get install sendmail-bin sendmail
-	• 
-	
+##	• (Optional) 
+
+	• sudo apt-get -y install exim4
+	https://www.digitalocean.com/community/tutorials/how-to-install-the-send-only-mail-server-exim-on-ubuntu-12-04
 
 ############################################################################################
 
@@ -214,6 +286,10 @@ USEFUL COMMANDS:
 
 # sudo killall -KILL -u <username> (or pkill)
 # sudo deluser --remove-home <username>
+
+# ls /etc/init.d (to check services)
+
+# sudo /etc/init.d/SERVICE_NAME start/restart/stop
 
 # cat /etc/passwd (to see users)
 
