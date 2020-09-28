@@ -12,7 +12,8 @@ ________________________________________________________________________________
 
 # Make sure it's up to date as well as the whole packages installed
 
-	• sudo apt-get update -y && sudo apt-get upgrade -y
+	• sudo apt-get update -y && sudo apt-get upgrade --with-new-pkgs -y
+	OR (sudo apt-get update -y && sudo apt-get upgrade -y)
 
 ############################################################################################
 
@@ -257,7 +258,14 @@ ________________________________________________________________________________
   the whole in a file named /var/log/update_script.log. Create a scheduled task for this script
   once a week at 4AM and every time the machine reboots.
 
-• 
+• sudo touch /var/log/update_script.log && sudo chown janne /var/log/update_script.log
+
+SCRIPT:
+
+	#!/bin/bash
+
+	sudo apt-get update -y | sudo tee -a /var/log/update_script.log
+	sudo apt-get upgrade --with-new-pkgs -y | sudo tee -a /var/log/update_script.log
 
 
 
@@ -283,6 +291,8 @@ ________________________________________________________________________________
 USEFUL COMMANDS:
 
 # su !! (run previous command as sudo)
+
+# scp -P 50001 <source> janne@10.11.66.6:<destination>
 
 # sudo killall -KILL -u <username> (or pkill)
 # sudo deluser --remove-home <username>
