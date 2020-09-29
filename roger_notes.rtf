@@ -32,7 +32,8 @@ ________________________________________________________________________________
 
 # Use sudo, with this user, to be able to perform operation requiring special rights.
 
-	• sudo adduser orava sudo (or sudo visudo > orava	ALL=(ALL:ALL) NOPASSWD:ALL)
+	• sudo adduser orava sudo
+	OR (sudo visudo > orava	ALL=(ALL:ALL) NOPASSWD: ALL)
 	(test it with i.e. "cat /var/log/syslog")
 ____________________________________________________________________________________________
 
@@ -259,13 +260,57 @@ ________________________________________________________________________________
   once a week at 4AM and every time the machine reboots.
 
 • sudo touch /var/log/update_script.log && sudo chown janne /var/log/update_script.log
-
-SCRIPT:
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+• Script:
 
 	#!/bin/bash
 
+	printf "\n" | sudo tee -a /var/log/update_script.log
+	date | sudo tee -a /var/log/update_script.log
 	sudo apt-get update -y | sudo tee -a /var/log/update_script.log
 	sudo apt-get upgrade --with-new-pkgs -y | sudo tee -a /var/log/update_script.log
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+• sudo crontab -e
+	(sudo crontab -u username -e)
+
+	SHELL=/bin/bash
+	MAILTO=root@example.com
+	PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+
+	# For details see man 4 crontabs
+
+	# Example of job definition:
+	# .---------------- minute (0 - 59)
+	# |  .------------- hour (0 - 23)
+	# |  |  .---------- day of month (1 - 31)
+	# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+	# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+	# |  |  |  |  |
+	# *  *  *  *  * user-name  command to be executed
+
+	-> 0 4 * * 0 /home/janne/update_script.sh
+	-> @reboot /home/janne/update_script.sh
+
+• crontab -l (to see user's crontabs)
+• sudo reboot
+• mail
+	"/var/mail/janne": 1 message 1 new
+	>N   1 Cron Daemon        Tue Sep 29 05:00  24/871   Cron <janne@debian> /home/janne/update_script.sh 
+
+	Saved 1 message in /home/janne/mbox
+____________________________________________________________________________________________
+
+# Make a script to monitor changes of the /etc/crontab file and sends an email to root if it has been modified.
+# Create a scheduled script task every day at midnight.
+
+• 
+
+
+
+
+
+
+
 
 
 
@@ -281,7 +326,7 @@ SCRIPT:
 
 ############################################################################################
 
-##	• (Optional) 
+##	• (Optional)
 
 	• sudo apt-get -y install exim4
 	https://www.digitalocean.com/community/tutorials/how-to-install-the-send-only-mail-server-exim-on-ubuntu-12-04
