@@ -49,6 +49,13 @@ ________________________________________________________________________________
 	• ifdown enp0s3 && ifup enp0s3 (to restart network)
 	(apt-get install net-tools)
 	• sudo netstat -tulpn OR sudo ss -tulpn to check if the dhclient is still listening
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	TEST IT:
+	• sudo vi /etc/network/interfaces
+		-> address 10.11.0.1 (change the IP)
+        -> netmask 255.255.255.0 (change to netmask /24)
+	• ifdown enp0s3 && ifup enp0s3 (to restart network)
+	• ssh janne@10.11.0.1 -p 50001 !!
 ____________________________________________________________________________________________
 
 # You have to change the default port of the SSH service by the one of your choice.
@@ -261,6 +268,8 @@ ________________________________________________________________________________
 
 • sudo touch /var/log/update_script.log && sudo chown janne /var/log/update_script.log
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+• sudo touch update_script.sh
+• sudo chmod 744 update_script.sh
 • Script:
 
 	#!/bin/bash
@@ -270,28 +279,34 @@ ________________________________________________________________________________
 	sudo apt-get update -y | sudo tee -a /var/log/update_script.log
 	sudo apt-get upgrade --with-new-pkgs -y | sudo tee -a /var/log/update_script.log
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-• sudo crontab -e
-	(sudo crontab -u username -e)
+• sudo vi /etc/crontab
+• add the two lines below:
 
-	SHELL=/bin/bash
-	MAILTO=root@example.com
-	PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
+		# /etc/crontab: system-wide crontab
+		# Unlike any other crontab you don't have to run the `crontab'
+		# command to install the new version when you edit this file
+		# and files in /etc/cron.d. These files also have username fields,
+		# that none of the other crontabs do.
 
-	# For details see man 4 crontabs
+		SHELL=/bin/sh
+		PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
-	# Example of job definition:
-	# .---------------- minute (0 - 59)
-	# |  .------------- hour (0 - 23)
-	# |  |  .---------- day of month (1 - 31)
-	# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
-	# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
-	# |  |  |  |  |
-	# *  *  *  *  * user-name  command to be executed
+		# Example of job definition:
+		# .---------------- minute (0 - 59)
+		# |  .------------- hour (0 - 23)
+		# |  |  .---------- day of month (1 - 31)
+		# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+		# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+		# |  |  |  |  |
+		# *  *  *  *  * user-name command to be executed
+		17 *    * * *   root    cd / && run-parts --report /etc/cron.hourly
+		25 6    * * *   root    test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.daily )
+		47 6    * * 7   root    test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.weekly )
+		52 6    1 * *   root    test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.monthly )
+	-> 00 4    * * 0   root    /home/janne/update_script.sh
+	-> @reboot         root    /home/janne/update_script.sh
+		#
 
-	-> 0 4 * * 0 /home/janne/update_script.sh
-	-> @reboot /home/janne/update_script.sh
-
-• crontab -l (to see user's crontabs)
 • sudo reboot
 • mail
 	"/var/mail/janne": 1 message 1 new
@@ -303,20 +318,71 @@ ________________________________________________________________________________
 # Make a script to monitor changes of the /etc/crontab file and sends an email to root if it has been modified.
 # Create a scheduled script task every day at midnight.
 
-• /var/spool/cron/crontabs (is where cron job are stored, per user)
+• sudo touch monitor_crontab.sh
+• sudo chmod 744 monitor_crontab.sh
+• Script:
 
+	#!/bin/bash
 
+	FILE_TO_MONITOR="/etc/crontab"
+	COMPARE_TO_FILE="/home/janne/last.crontab.check"
+	CHECKSUM=$(sudo md5sum $FILE_TO_MONITOR)
+	if [ ! -f $COMPARE_TO_FILE ]
+	then
+			echo "$CHECKSUM" > $COMPARE_TO_FILE
+			exit 0;
+	fi;
+			echo "$CHECKSUM"
+			cat $COMPARE_TO_FILE
+	if [ "$CHECKSUM" != "$(cat $COMPARE_TO_FILE)" ];
+			then
+			echo "$CHECKSUM" > $COMPARE_TO_FILE
+			echo "$FILE_TO_MONITOR has been modified ! '*_*" |  mail -s "$FILE_TO_MONITOR modified !" root
+	fi;
 
+• add another user (for re-directing the mail to root)
+• sudo vi /etc/aliases
+	-> # /etc/aliases
+	   mailer-daemon: postmaster
+	   postmaster: root
+	   nobody: root
+	   hostmaster: root
+	   usenet: root
+	   news: root
+	   webmaster: root
+	   www: root
+	   ftp: root
+	   abuse: root
+	   noc: root
+	   security: root
+	   -> root: keke (change root : janne TO root : <new_user>)
 
+• sudo rm -f /var/spool/mail/root (remove the file in order to be able to create the softlink)
+• sudo ln -s /var/spool/mail/keke /var/spool/mail/root (softlink redirects)
+• sudo vi /etc/crontab
+	-> 00 0    * * *   root    /home/janne/monitor_crontab.sh (add this line)
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+TO TEST IT:
+• sudo touch /etc/crontab
+• bash monitor_crontab.sh
+• sudo mail -u root
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+BACK UP:
 
+janne@debian:~$ cat monitor_crontab.sh 
+	#!/bin/bash
 
-
-
-
-
-
-
-
+	FILE_TO_MONITOR=/etc/crontab
+	COMPARE_TO_FILE=/home/janne/last.crontab.check
+	if [ -f $COMPARE_TO_FILE ]
+	then  
+		find $FILE_TO_MONITOR -type f -newer $COMPARE_TO_FILE | while read tabfile
+		do
+		echo "/etc/crontab has been changed" | mail -s "Crontab changed" root
+		done
+	fi
+	touch $COMPARE_TO_FILE
+____________________________________________________________________________________________
 
 
 
@@ -362,3 +428,4 @@ TROUBLESHOOTING:
 
 # sudo: killall: command not found
 	• apt-get install psmisc (su -)
+
