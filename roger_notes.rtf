@@ -384,9 +384,159 @@ janne@debian:~$ cat monitor_crontab.sh
 	touch $COMPARE_TO_FILE
 ____________________________________________________________________________________________
 
+# You have to set a web server who should BE available on the VM’s IP or an host (init.login.com for exemple).
+# About the packages of your web server, you can choose between Nginx and Apache. You have to set a self-signed SSL on all of your services.
+#
+# You have to set a web "application" from those choices:
+# 	• login page.
+# 	• display site.
+# 	• wonderful website that blow our minds.
+#
+# web-app COULD be written with any language you want
 
+https://www.google.com/search?q=http+basic+authentication&oq=http+basic+authentication&aqs=chrome..69i57.5602j0j7&sourceid=chrome&ie=UTF-8
 
+https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-debian-9
 
+• Step 1 — Creating the SSL Certificate
+	We can create a self-signed key and certificate pair with OpenSSL in a single command:
+	-> sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/apache-selfsigned.key -out /etc/ssl/certs/apache-selfsigned.crt
+	Fill out the prompts appropriately. The most important line is the one that requests the Common Name (e.g. server FQDN or YOUR name). You need to enter the domain name associated with your server or, more likely, your server’s public IP address.	
+
+• Step 2 — Configuring Apache to Use SSL
+	We have created our key and certificate files under the /etc/ssl directory. Now we just need to modify our Apache configuration to take advantage of these.
+
+	We will make a few adjustments to our configuration:
+
+	We will create a configuration snippet to specify strong default SSL settings.
+	We will modify the included SSL Apache Virtual Host file to point to our generated SSL certificates.
+	(Recommended) We will modify the unencrypted Virtual Host file to automatically redirect requests to the encrypted Virtual Host.
+	When we are finished, we should have a secure SSL configuration.
+
+	1. Creating an Apache Configuration Snippet with Strong Encryption Settings
+
+	-> sudo nano /etc/apache2/conf-available/ssl-params.conf
+		paste this inside the file:
+			SSLCipherSuite EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH
+			SSLProtocol All -SSLv2 -SSLv3 -TLSv1 -TLSv1.1
+			SSLHonorCipherOrder On
+			# Disable preloading HSTS for now.  You can use the commented out header line that includes
+			# the "preload" directive if you understand the implications.
+			# Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+			Header always set X-Frame-Options DENY
+			Header always set X-Content-Type-Options nosniff
+			# Requires Apache >= 2.4
+			SSLCompression off
+			SSLUseStapling on
+			SSLStaplingCache "shmcb:logs/stapling-cache(150000)"
+			# Requires Apache >= 2.4.11
+			SSLSessionTickets Off	
+
+	2. Modifying the Default Apache SSL Virtual Host File
+
+	Before we go any further, let’s back up the original SSL Virtual Host file:
+		-> sudo cp /etc/apache2/sites-available/default-ssl.conf /etc/apache2/sites-available/default-ssl.conf.bak
+
+	Now, open the SSL Virtual Host file to make adjustments:
+		-> sudo nano /etc/apache2/sites-available/default-ssl.conf
+		Make these changes:
+
+				<IfModule mod_ssl.c>
+				<VirtualHost _default_:443>
+		->				ServerAdmin (your_email@example.com)
+		->				(ServerName server_domain_or_IP)
+
+						DocumentRoot /var/www/html
+
+						ErrorLog ${APACHE_LOG_DIR}/error.log
+						CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+						SSLEngine on
+
+		->				SSLCertificateFile      /etc/ssl/certs/(apache-selfsigned.crt)
+		->				SSLCertificateKeyFile /etc/ssl/private/(apache-selfsigned.key)
+
+						<FilesMatch "\.(cgi|shtml|phtml|php)$">
+										SSLOptions +StdEnvVars
+						</FilesMatch>
+						<Directory /usr/lib/cgi-bin>
+										SSLOptions +StdEnvVars
+						</Directory>
+
+				</VirtualHost>
+		</IfModule>
+
+	3. (Recommended) Modifying the HTTP Host File to Redirect to HTTPS
+
+	As it stands now, the server will provide both unencrypted HTTP and encrypted HTTPS traffic. For better security, it is recommended in most cases to redirect HTTP to HTTPS automatically. If you do not want or need this functionality, you can safely skip this section.
+	-> sudo nano /etc/apache2/sites-available/000-default.conf
+
+	Inside, within the VirtualHost configuration blocks, add a Redirect directive, pointing all traffic to the SSL version of the site:
+		<VirtualHost *:80>
+			. . .
+
+			Redirect "/" "https://your_domain_or_IP/"
+
+			. . .
+		</VirtualHost>
+
+• Step 3 — Adjusting the Firewall
+
+	-> sudo ufw app list (to see the available profiles)
+	-> sudo ufw allow 'WWW Full' (to additionally let in HTTPS traffic)
+
+• Step 4 — Enabling the Changes in Apache
+
+	Now that we’ve made our changes and adjusted our firewall, we can enable the SSL and headers modules in Apache, enable our SSL-ready Virtual Host, and then restart Apache to put these changes into effect.
+		-> sudo a2enmod ssl (enable these two modes)
+		-> sudo a2enmod headers
+		-> sudo a2ensite default-ssl (enable your SSL Virtual Host)
+		-> sudo a2enconf ssl-params (enable your ssl-params.conf file, to read in the values you’ve set)
+		-> sudo apache2ctl configtest (you should get: Syntax OK)*
+			*if error: (sudo vi /etc/apache2/apache2.conf)
+						-> insert line: ServerName localhost
+
+	sudo service apache2 restart
+	(sudo service apache2 status)
+	(sudo reboot)
+
+	*sudo nano /etc/hosts.deny (in debian)
+		-> #comment or delete line ALL: 192.168.100.37 : DENY
+
+• Step 5 — Testing Encryption
+
+Open your web browser and type https:// followed by your server’s domain name or IP into the address bar:
+ -> https://server_domain_or_IP
+
+* When receiving a warning "Your connection is not private"
+	-> Click ADVANCED and then the link provided to proceed to your host anyways
+		*if the link's not there type “thisisunsafe” directly in chrome on the same page
+
+• Step 6 — Changing to a Permanent Redirect
+
+	-> sudo nano /etc/apache2/sites-available/000-default.conf
+		-> add the word "permanent" here:
+			Redirect permanent "/" "https://your_domain_or_IP/"
+	
+	sudo apache2ctl configtest (Syntax OK?)
+	sudo systemctl restart apache2
+	sudo status restart apache2
+
+Conclusion
+You have configured your Apache server to use strong encryption for client connections. This will allow you serve requests securely, and will prevent outside parties from reading your traffic.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+/etc/apache2/apache2.conf (is the main configuration file)
+
+/etc/apache2/apache2.conf (is used to determine the listening ports for incoming connections)
+
+The default Debian document root is /var/www/html. You can make your own virtual hosts under /var/www
+
+/var/www/html/index.html
+
+sudo nano /etc/hosts.deny (in debian)
+	-> #comment or delete line ALL: 192.168.100.37 : DENY
 
 
 
