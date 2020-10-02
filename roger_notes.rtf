@@ -1,25 +1,31 @@
-############################################################################################
+###########################################################################################################################################
+
+CHECK CHECKSUM: (on MAC)
+
+• shasum < /goinfre/jraty/Debian-Roger.vdi
+
+###########################################################################################################################################
 
 INSTALLATION:
 
-############################################################################################
+###########################################################################################################################################
 
 # Do the partitioning
 
 	• A disk size of 8 GB.
 	• Have at least one 4.2 GB partition.
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # Make sure it's up to date as well as the whole packages installed
 
 	• sudo apt-get update -y && sudo apt-get upgrade --with-new-pkgs -y
 	OR (sudo apt-get update -y && sudo apt-get upgrade -y)
 
-############################################################################################
+###########################################################################################################################################
 
 NETWORK AND SECURITY:
 
-############################################################################################
+###########################################################################################################################################
 
 !! Make sure you have at least one (non-root) user with matching pubkey
 
@@ -28,14 +34,14 @@ NETWORK AND SECURITY:
 
 	• sudo adduser orava
 	• ssh orava@<host.ip>
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # Use sudo, with this user, to be able to perform operation requiring special rights.
 
 	• sudo adduser orava sudo
 	OR (sudo visudo > orava	ALL=(ALL:ALL) NOPASSWD: ALL)
 	(test it with i.e. "cat /var/log/syslog")
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # We don’t want you to use the DHCP service of your machine.
   You’ve got to configure it to have a static IP and a Netmask in \30.
@@ -49,14 +55,14 @@ ________________________________________________________________________________
 	• ifdown enp0s3 && ifup enp0s3 (to restart network)
 	(apt-get install net-tools)
 	• sudo netstat -tulpn OR sudo ss -tulpn to check if the dhclient is still listening
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	TEST IT:
 	• sudo vi /etc/network/interfaces
 		-> address 10.11.0.1 (change the IP)
         -> netmask 255.255.255.0 (change to netmask /24)
 	• ifdown enp0s3 && ifup enp0s3 (to restart network)
 	• ssh janne@10.11.0.1 -p 50001 !!
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # You have to change the default port of the SSH service by the one of your choice.
   SSH access HAS TO be done with publickeys. SSH root access SHOULD NOT be allowed
@@ -70,13 +76,13 @@ ________________________________________________________________________________
 	• sudo service sshd restart
 	• connect again via new port: ssh <username>@<host.ip> -p <port_nbr>
 	(sudo ss -tulpn OR sudo netstat -tulpn (to check which port sshd is currently))
-	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	• sudo vi /etc/ssh/sshd_config
 		-> uncomment "PermitRootLogin" and set its value to "no"
 		-> uncomment "PubkeyAuthentication" and set its value to "yes"
 		-> uncomment "PasswordAuthentication" and set its value to "no"
 	• sudo service sshd restart
-	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	• ssh orava@10.11.66.6 -p 50001 (doesn't work...)
 		-> orava@10.11.66.6: Permission denied (publickey).
 	• go back to "sudo vi /etc/ssh/sshd_config" (on guest machine)
@@ -88,7 +94,7 @@ ________________________________________________________________________________
 	• set "PasswordAuthentication" back to "no"
 	• sudo service sshd restart
 	• ssh orava@10.11.66.6 -p 50001 (works!!!)
-	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	OR
 	(login as a non-root user with sudo rights)
 	• sudo adduser orava
@@ -98,7 +104,7 @@ ________________________________________________________________________________
 	• sudo chown orava /home/orava/.ssh/authorized_keys
 	• logout
 	• ssh orava@10.11.66.6 -p 50001
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # You have to set the rules of your firewall on your server only with the services
   used outside the VM.
@@ -112,7 +118,7 @@ ________________________________________________________________________________
 	  (sudo iptables --list) - the default firewall management utility
 	  (sudo netstat -tapnl) - to see which port's are listening
 	  (sudo lsof -i :50001)
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # You have to set a DOS (Denial Of Service Attack) protection on your open ports of your VM.
 
@@ -131,10 +137,10 @@ ________________________________________________________________________________
 			port = http,https
 			filter = http-get-dos
 			logpath = /var/log/apache*/access.log
-			maxretry = 400
-			findtime = 400
+			maxretry = 100
+			findtime = 60
 			bantime = 200
-			action = iptables[name=HTTP, port=http, protocol=tcp]
+			action = iptables-multiport[name=ReqLimit, port="http,https", protocol=tcp]
 	• sudo vi /etc/fail2ban/filter.d/http-get-dos.conf (create a new file)
 		-> # Fail2Ban configuration file
 			#
@@ -154,7 +160,7 @@ ________________________________________________________________________________
 	• sudo service fail2ban restart (restart to make changes effective)
 	• sudo service fail2ban status (check it running again)
 	• sudo fail2ban-client status (check both jails are active)
-	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	(in the MAC TERMINAL)
 
 	[HTTP attack]
@@ -192,7 +198,7 @@ ________________________________________________________________________________
 		   paviaani@10.11.66.6: Permission denied (publickey).
 		   c1r6p13% ssh paviaani@10.11.66.6 -p 50001
 		   ssh: connect to host 10.11.66.6 port 50001: Connection refused
-	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	(in the DEBIAN TERMINAL, because you're now banned)
 
 	-> sudo fail2ban-client status sshd (check sshd jail)
@@ -211,7 +217,7 @@ ________________________________________________________________________________
 				2020-09-25 09:08:38,925 fail2ban.actions        [9311]: NOTICE  [sshd] Ban 10.11.6.13
 
 	(sudo fail2ban-client set JAIL_NAME unbanip IP_ADDR - to unban an ip if needed)
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # You have to set a protection against scans on your VM’s open ports.
 
@@ -233,7 +239,7 @@ ________________________________________________________________________________
 (c) sudo cat /var/log/syslog
 	-> Sep 28 05:09:50 debian portsentry[6086]: attackalert: Host 10.11.66.6 has been blocked via
 	   dropped route using command: "/sbin/iptables -I INPUT -s 10.11.66.6 -j DROP"
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # Stop the services you don’t need for this project.
 
@@ -260,14 +266,14 @@ REBOOT AND CHECK
 	...
 
 • systemctl --type=service (to list all loaded services on your system)
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # Create a script that updates all the sources of package, then your packages and which logs
   the whole in a file named /var/log/update_script.log. Create a scheduled task for this script
   once a week at 4AM and every time the machine reboots.
 
 • sudo touch /var/log/update_script.log && sudo chown janne /var/log/update_script.log
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 • sudo touch update_script.sh
 • sudo chmod 744 update_script.sh
 • Script:
@@ -278,7 +284,7 @@ ________________________________________________________________________________
 	date | sudo tee -a /var/log/update_script.log
 	sudo apt-get update -y | sudo tee -a /var/log/update_script.log
 	sudo apt-get upgrade --with-new-pkgs -y | sudo tee -a /var/log/update_script.log
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 • sudo vi /etc/crontab
 • add the two lines below:
 
@@ -313,7 +319,7 @@ ________________________________________________________________________________
 	>N   1 Cron Daemon        Tue Sep 29 05:00  24/871   Cron <janne@debian> /home/janne/update_script.sh 
 
 	Saved 1 message in /home/janne/mbox
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # Make a script to monitor changes of the /etc/crontab file and sends an email to root if it has been modified.
 # Create a scheduled script task every day at midnight.
@@ -361,13 +367,13 @@ ________________________________________________________________________________
 • sudo ln -s /var/spool/mail/keke /var/spool/mail/root (softlink redirects)
 • sudo vi /etc/crontab
 	-> 00 0    * * *   root    /home/janne/monitor_crontab.sh (add this line)
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 TO TEST IT:
 • sudo vi /etc/crontab (and edit the file)
 • bash monitor_crontab.sh
 • sudo mail -u root
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-BACK UP:
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+ALTERNATIVE VERSION:
 
 janne@debian:~$ cat monitor_crontab.sh 
 	#!/bin/bash
@@ -382,7 +388,7 @@ janne@debian:~$ cat monitor_crontab.sh
 		done
 	fi
 	touch $COMPARE_TO_FILE
-____________________________________________________________________________________________
+___________________________________________________________________________________________________________________________________________
 
 # You have to set a web server who should BE available on the VM’s IP or an host (init.login.com for exemple).
 # About the packages of your web server, you can choose between Nginx and Apache. You have to set a self-signed SSL on all of your services.
@@ -394,7 +400,62 @@ ________________________________________________________________________________
 #
 # web-app COULD be written with any language you want
 
-https://www.google.com/search?q=http+basic+authentication&oq=http+basic+authentication&aqs=chrome..69i57.5602j0j7&sourceid=chrome&ie=UTF-8
+• CREATE A WEB PAGE:
+	
+	• sudo vi /var/www/html/index.html
+		-> start with this, and edit as you please
+			<!DOCTYPE html>
+			<html>
+			<body>
+
+			<h1>My First Heading</h1>
+
+			<p>My first paragraph.</p>
+
+			</body>
+			</html>
+
+	• my page:
+			<!DOCTYPE html>
+			<html>
+			<body>
+
+			<style type="text/css">
+			html { 
+			background: url(https://spacenews.com/wp-content/uploads/2018/05/24359364107_152b0152ff_k.jpg) no-repeat center center fixed; 
+			-webkit-background-size: cover;
+			-moz-background-size: cover;
+			-o-background-size: cover;
+			background-size: cover;
+			}
+			</style>
+
+			<h1 style="color:white">Tired of Roger-Skyline? You've come to the right place...</h1>
+
+			<p style="color:white">Don't know what to do? Press here:</p>
+					<button type="button" onclick="alert('Press the button below, it will make you smile :D') ">Instructions</button>
+
+			<div class="bgimg w3-display-container w3-animate-opacity w3-text-white">
+			<div class="w3-display-middle">
+			<p style="color:white">Ready? Press here:</p>
+			<h1 class="w3-jumbo w3-animate-top"Ready? Press here:></h1>
+			<p><button class="w3-center center transparent_btn" onclick="play1()">For laughs</button></p>
+			<div id="youtube-frame"></div>
+			</div>
+			</body>
+
+			<script>
+			function play1() { 
+				var frame = document.getElementById("youtube-frame");
+				frame.innerHTML += "<iframe width='560' height='315' src='https://www.youtube.com/embed/gbVv94Tl8EI' frameborder='0' allow='accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture' allowfullscreen></iframe>";
+			}
+			</script>
+
+			</html>
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+• SSL CERTIFICATE:
 
 https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-debian-9
 
@@ -525,29 +586,26 @@ Open your web browser and type https:// followed by your server’s domain name 
 Conclusion
 You have configured your Apache server to use strong encryption for client connections. This will allow you serve requests securely, and will prevent outside parties from reading your traffic.
 
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-/etc/apache2/apache2.conf (is the main configuration file)
+IN CASE YOU GET BANNED:
 
-/etc/apache2/apache2.conf (is used to determine the listening ports for incoming connections)
+-> sudo vi /etc/portsentry/portsentry.ignore.static
+	-> add your MAC's IP/netmask to ignore list
+	-> sudo service portsentry restart (to apply the changes)
 
-The default Debian document root is /var/www/html. You can make your own virtual hosts under /var/www
-
-/var/www/html/index.html
-
-sudo nano /etc/hosts.deny (in debian)
+-> sudo nano /etc/hosts.deny (in debian)
 	-> #comment or delete line ALL: 192.168.100.37 : DENY
 
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+EVAL:
 
-############################################################################################
+sudo netstat -ltup (show that the apache2 is not listening to localhost, even though exim4 is)
 
-##	• (Optional)
+sudo apache2ctl -S (show that there is only one active configuration)
 
-	• sudo apt-get -y install exim4
-	https://www.digitalocean.com/community/tutorials/how-to-install-the-send-only-mail-server-exim-on-ubuntu-12-04
-
-############################################################################################
+###########################################################################################################################################
 
 USEFUL COMMANDS:
 
@@ -566,7 +624,7 @@ USEFUL COMMANDS:
 
 # sudo reboot (restart system)
 
-############################################################################################
+###########################################################################################################################################
 
 TROUBLESHOOTING:
 
