@@ -1,0 +1,4 @@
+sudo systemctl enable systemd-timesyncd
+sudo systemctl start systemd-timesyncd
+
+(sudo systemctl status systemd-timesyncd)
