@@ -2,3 +2,12 @@ sudo systemctl enable systemd-timesyncd
 sudo systemctl start systemd-timesyncd
 
 (sudo systemctl status systemd-timesyncd)
+
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+chmod o+r /etc/resolv.conf
+sudo vi /etc/resolv.conf
+	-> nameserver 8.8.8.8
+	-> nameserver 8.8.4.4
+sudo service networking restart
+sudo ifup enp0s3 (ON DEBIAN)
