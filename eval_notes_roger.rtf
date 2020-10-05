@@ -20,11 +20,137 @@ CHECK DISK SIZE AND PARTITIONS:
 
 CHECK SYSTEM IS UP-TO-DATE:
 
+• sudo apt update
+• sudo apt upgrade
+
 • sudo apt-get update -y && sudo apt-get upgrade --with-new-pkgs -y
+• sudo apt-get upgrade
 
 CHECK INSTALLED PACKAGES:
 
 • sudo apt list --installed
 
 ###########################################################################################################################################
+
+CREATE A NEW USER AND CONNECT WITH SSH:
+
+(login as a non-root user with sudo rights)
+	• sudo adduser orava
+	• sudo adduser orava sudo
+	• sudo mkdir -p /home/orava/.ssh/
+	• sudo scp /home/janne/.ssh/authorized_keys /home/orava/.ssh/authorized_keys
+	• sudo chown orava /home/orava/.ssh/authorized_keys
+	• logout
+	• ssh orava@10.11.66.6 -p 50001
+
+###########################################################################################################################################
+
+CHECK THAT THE DCHP SERVICE IS DISABLED:
+
+• cat /etc/network/interfaces (static)
+• ip a (no dhcp on enp0s3)
+• sudo ss -tulpn (dhcp is not listening)
+• ps -elf | grep dhclient
+
+###########################################################################################################################################
+
+CHANGE THE NETMASK:
+
+• sudo vi /etc/network/interfaces
+	-> change netmask to 255.255.255.0
+• sudo service networking restart
+• sudo ifup enp0s3 (on Debian)
+
+###########################################################################################################################################
+
+CHECK SSH PORT HAS BEEN CHANGED, PUBKEY AUTHENTICATION AND NO ROOT LOGIN:
+
+• cat /etc/ssh/sshd_config
+	-> Port 50001
+	-> PubkeyAuthentication yes
+	-> PermitRootLogin no
+	-> PasswordAuthentication no
+
+###########################################################################################################################################
+
+FIREWALL RULES:
+
+• sudo ufw status
+
+###########################################################################################################################################
+
+DOS ATTACK:
+
+(ON MAC)
+• cd ~/slowloris
+• python slowloris.py 10.11.66.6
+
+(ON DEBIAN)
+• sudo fail2ban-client status http-get-dos (you are banned)
+• sudo service fail2ban status (fail2ban is installed and running)
+
+• sudo fail2ban-client set http-get-dos unbanip 10.11.5.16 (unban yourself)
+
+###########################################################################################################################################
+
+LIST OPEN PORTS:
+
+• sudo netstat -tulpn | grep LISTEN (to see which ports are open/listened)
+• OR (sudo lsof -i -P -n | grep LISTEN)
+• OR (sudo nmap -sTU -O 10.11.66.6)
+
+###########################################################################################################################################
+
+CHEK ACTIVE SERVICES:
+
+• sudo service --status-all
+
+###########################################################################################################################################
+
+CHECK UPDATE SCRIPT AND CRON:
+
+• cat update_script.sh (su janne)
+• cat /etc/crontab
+• cat /var/log/update_script.log
+
+CHECK MONITOR SCRIPT AND CRON:
+
+• cat monitor_crontab.sh
+	-> sudo vi /etc/crontab (make a change)
+	-> bash monitor_crontab.sh (run the script)
+	-> sudo mail -u root
+
+	(netmask /30?)
+
+###########################################################################################################################################
+
+SSL CERTIFICATE:
+
+• show the certificate from the site
+
+###########################################################################################################################################
+
+CHECK APACHE2 IS INSTALLED:
+
+• sudo apt list --installed | grep apache
+
+###########################################################################################################################################
+
+SHOW ONLY ONE ACTIVE CONFIGRATION:
+
+• sudo apache2ctl -S (show that there is only one active configuration)
+	-> 127.0.1.1 (not showing site, so is inactive)
+	-> 10.11.66.6 (site is running, so this is active)
+
+###########################################################################################################################################
+
+DEPLOYMENT:
+
+Explain how I did SSL Certificate (by editing the apache2 configurations) and how we created our site (by editing /var/www/html/index.html)
+
+MAKE A CHANGE TO THE SITE:
+
+• sudo vi /var/www/html/index.html (edit)
+	-> go to browser and refresh
+
 
